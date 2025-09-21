@@ -7,9 +7,40 @@ class Transaction:
     
     def sign(self):
         """
-        Analyse your time complexity of this method.
+        :complexity: O(N + K) where N is the length of the variable string 
+        data_string and K is the constant signature length 36.
+
+        Computing data_string is O(1) assuming string formatting 
+        uses fixed-size fields. The first loop iterates once per character 
+        in data_string, performing O(1) work for each iteration O(N). The second 
+        loop runs exactly 36 times (the signature length), performing O(1) 
+        each iteration O(K), which is O(1) because K = 36 is constant.
+
+        Overall, the dominant term is O(N).
+        Worst case is therefore O(N).
         """
-        pass
+        data_string = f"{self.timestamp}-{self.from_user}-{self.to_user}"
+        hash_prime = 2**127-1
+        current_hash_value = 0
+        hash_base = 37
+        
+        for char in data_string:
+            current_hash_value = (current_hash_value * hash_base + ord(char)) % hash_prime
+        
+        if current_hash_value < 0:
+            current_hash_value += hash_prime
+            
+        base36_chars = "0123456789abcdefghijklmnopqrstuvwxyz"
+        signature_length = 36
+        
+        base36_string = ""
+        temp_hash_value = current_hash_value
+        
+        for i in range(signature_length):
+            base36_string = base36_chars[temp_hash_value % len(base36_chars)] + base36_string
+            temp_hash_value //= len(base36_chars)
+        
+        self.signature = base36_string
 
 
 class ProcessingLine:
@@ -17,7 +48,7 @@ class ProcessingLine:
         """
         Analyse your time complexity of this method.
         """
-        pass
+        self.critical_transaction = Transaction(critical_transaction)
 
     def add_transaction(self, transaction):
         """
