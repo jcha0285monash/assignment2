@@ -1,3 +1,6 @@
+from data_structures.linked_stack import LinkedStack
+from data_structures.linked_queue import LinkedQueue
+
 class Transaction:
     def __init__(self, timestamp, from_user, to_user):
         self.timestamp = timestamp
@@ -42,20 +45,64 @@ class Transaction:
         
         self.signature = base36_string
 
+class _ProcessingLineIterator:
+    def __init__(self, processing_line):
+        self.processing_line = processing_line
+        self._critical = False
+    
+    def __iter__(self):
+        return self
+    
+    def __next__(self):
+        if not self.processing_line._before_queue.is_empty():
+            item = self.processing_line._before_queue.serve()
+            item.sign()
+            return item
+        
+        if not self._critical:
+            self._critical = True
+            item = self.processing_line.critical_transaction
+            item.sign()
+            return item
+        
+        if not self.processing_line._after_stack.is_empty():
+            item = self.processing_line._after_stack.pop()
+            item.sign()
+            return item
+        
+        raise StopIteration
 
 class ProcessingLine:
     def __init__(self, critical_transaction):
         """
         Analyse your time complexity of this method.
         """
-        self.critical_transaction = Transaction(critical_transaction)
+        self.critical_transaction = critical_transaction
+        self._before_queue = LinkedQueue()
+        self._after_stack = LinkedStack()
+        self._locked = False
+        self._iterator_active = False
+        
+        
+    def __iter__(self):
+        if self._locked:
+            raise RuntimeError("Processing line is locked.")
+        self._locked = True
+        self._iterator_active = True
+        return _ProcessingLineIterator(self)
+
 
     def add_transaction(self, transaction):
         """
         Analyse your time complexity of this method.
         """
-        pass
-
+        if self._locked:
+            raise RuntimeError("Processing line is locked.")
+        
+        if transaction.timestamp <= self.critical_transaction.timestamp:
+            self._before_queue.append(transaction)
+        else:
+            self._after_stack.push(transaction)
 
 if __name__ == "__main__":
     # Write tests for your code here...
@@ -80,3 +127,4 @@ if __name__ == "__main__":
                   f"Time: {transaction.timestamp}\nSignature: {transaction.signature}")
         except StopIteration:
             break
+    
