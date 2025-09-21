@@ -6,8 +6,11 @@ from processing_line import Transaction
 class ProcessingBook:
     LEGAL_CHARACTERS = "abcdefghijklmnopqrstuvwxyz0123456789"
 
-    def __init__(self):
+    def __init__(self, level=0):
         self.pages = ArrayR(len(ProcessingBook.LEGAL_CHARACTERS))
+        self.level = level
+        self.error_count = 0
+        self.count = 0
     
     def page_index(self, character):
         """
@@ -20,10 +23,118 @@ class ProcessingBook:
         """
         Returns the number of errors encountered while storing transactions.
         """
-        pass
+        return self.error_count 
     
     def __len__(self):
-        pass
+        return self.count
+    
+    def _extract_single(self):
+        single = None
+        for page in self.pages:
+            if page is not None:
+                if single is not None:
+                    return None
+                if isinstance(page, tuple):
+                    single = page
+                elif isinstance(page, ProcessingBook):
+                    extracted = page._extract_single()
+                    if extracted is None:
+                        return None
+                    single = extracted
+        return single
+    
+    def __delitem__(self, transaction):
+        signature = transaction.signature
+        index = self.page_index(signature[self.level])
+        current = self.pages[index]
+        
+        if current is None:
+            raise KeyError(f"Transaction {signature} not found")
+        
+        if isinstance(current, tuple):
+            existing_transaction, existing_amount = current
+            if existing_transaction.signature == signature:
+                self.pages[index] = None
+                self.count -= 1
+                return
+            else:
+                raise KeyError(f"Transaction {signature} not found")
+        
+        if isinstance(current, ProcessingBook):
+            before = len(current)
+            del current[transaction]
+            after = len(current)
+            self.count -= (before - after)
+            
+            if after == 0:
+                self.pages[index] = None
+            elif after == 1:
+                extracted = current._extract_single()
+                if extracted is not None:
+                    self.pages[index] = extracted
+            return
+        
+        raise KeyError(f"Transaction {signature} not found")
+    
+    def __setitem__(self, transaction, amount):
+        signature = transaction.signature
+        if len(signature) <= self.level:
+            self.error_count += 1
+            return
+        
+        index = self.page_index(signature[self.level])
+        current = self.pages[index]
+        
+        if current is None:
+            self.pages[index] = (transaction, amount)
+            self.count += 1
+            return
+        
+        if isinstance(current, tuple):
+            existing_transaction, existing_amount = current
+            if existing_transaction.signature == signature:
+                if existing_amount != amount:
+                    self.error_count += 1
+                return
+            else:
+                nested = ProcessingBook(self.level + 1)
+                nested[existing_transaction] = existing_amount
+                nested[transaction] = amount
+                self.pages[index] = nested
+                self.count += 1
+                return
+        
+        if isinstance(current, ProcessingBook):
+            before_error = current.get_error_count()
+            before_count = len(current)
+            current[transaction] = amount
+            after_error = current.get_error_count()
+            after_count = len(current)
+            
+            self.error_count += (after_error - before_error)
+            self.count += (after_count - before_count)
+            return
+        
+    def __getitem__(self, transaction):
+        signature = transaction.signature
+        index = self.page_index(signature[self.level])
+        current = self.pages[index]
+        
+        if current is None:
+            raise KeyError(f"Transaction {signature} not found")
+        
+        if isinstance(current, tuple):
+            existing_transaction, amount = current
+            if existing_transaction.signature == signature:
+                return amount
+            else:
+                raise KeyError(f"Transaction {signature} not found")
+        
+        if isinstance(current, ProcessingBook):
+            return current[transaction]
+        
+        raise KeyError(f"Transaction {signature} not found")
+                
     
     def sample(self, required_size):
         """
