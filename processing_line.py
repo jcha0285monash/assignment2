@@ -75,7 +75,11 @@ class _ProcessingLineIterator:
 class ProcessingLine:
     def __init__(self, critical_transaction):
         """
-        Analyse your time complexity of this method.
+        :complexity: Best case is O(1) and worst case is O(1).
+        The constructor only assigns references to a few instance variables
+        and creates empty LinkedQueue and LinkedStack objects.  
+        All these operations, such as, assigning attributes, creating empty data
+        structures, take constant time regardless of the size of any input.
         """
         self.critical_transaction = critical_transaction
         self._before_queue = LinkedQueue()
@@ -94,7 +98,11 @@ class ProcessingLine:
 
     def add_transaction(self, transaction):
         """
-        Analyse your time complexity of this method.
+        :complexity: Best case is O(1) and worst case is O(1). This method performs, 
+        a O(1) check of the _locked flag, a O(1) comparison of two timestamps, 
+        and appending to a LinkedQueue or pushing to a LinkedStack with a time 
+        complexity of O(1). Therefore, the entire method runs in constant 
+        time in all cases.
         """
         if self._locked:
             raise RuntimeError("Processing line is locked.")
@@ -127,4 +135,3 @@ if __name__ == "__main__":
                   f"Time: {transaction.timestamp}\nSignature: {transaction.signature}")
         except StopIteration:
             break
-    
