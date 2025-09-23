@@ -1,5 +1,10 @@
+
 from processing_line import Transaction
 from data_structures import ArrayR
+from data_structures import HashTableSeparateChaining
+from data_structures import LinkedList
+from algorithms import insertion_sort
+from data_structures.hash_table_linear_probing import LinearProbeTable
 
 
 class FraudDetection:
@@ -9,11 +14,100 @@ class FraudDetection:
     def detect_by_blocks(self):
         """
         Analyse your time complexity of this method.
+        :complexity: Best case is O(N * L^2) where N is the number of transactions and L is the 
+        length of a signature.
+        
+        The best case happens when the block size S is large (close to the length of a signature), 
+        so each signature only splits into a small number of blocks. In this case, insertion sort 
+        works on very few blocks, and the cost per transaction is dominated by string slicing and 
+        hashing, both of which are O(L). Over all block sizes, this totals to O(N * L^2).
+
+        Worst case is O(N * L^3). This happens when the block size S = 1, so each signature of length 
+        L is split into L single-character blocks. Insertion sort must then sort L blocks, which costs 
+        O(L^2) per transaction. Since there are N transactions and up to L different block sizes to 
+        test, the total becomes O(N * L^3).
         """
-        pass
+        first_signature = self.transactions[0].signature
+        raw_signature_length = len(first_signature)
+
+        best_score_block_size = 1
+        best_score = 1
+
+        # Try all block sizes
+        for S in range(1, raw_signature_length + 1):
+            table = HashTableSeparateChaining()
+
+            # For each transaction sort the blocks and add to hash table to find how many transactions match
+            for transaction in self.transactions:
+                signature = transaction.signature
+                signature_length = (raw_signature_length // S) * S
+                prefix = signature[:signature_length]
+                suffix = signature[signature_length:]
+
+                # Split the signature into blocks
+                blocks = LinkedList()
+                for i in range(0, signature_length, S):
+                    blocks.append(prefix[i:i+S])
+
+                # Insertion sort
+                sorted_blocks = insertion_sort(blocks)
+                duplicates = "".join(sorted_blocks) + suffix
+
+                # Increment duplicate count in hash table
+                try:
+                    curr = table[duplicates]
+                    table[duplicates] = curr + 1
+                except KeyError:
+                    table[duplicates] = 1
+
+            # Calculate suspicion score
+            items = table.items()
+            score = 1
+            for j in range(len(items)):
+                key, value = items[j]
+                score *= value
+
+            # Update best score
+            if score > best_score:
+                best_score = score
+                best_score_block_size = S
+
+        return (best_score_block_size, best_score)
 
     def rectify(self, functions):
-        pass
+        best_func = None
+        best_mpcl = float("inf")
+
+        for f in functions:
+            table = LinearProbeTable()
+            max_chain = 0
+
+            # Insert each transaction's key
+            for tx in self.transactions:
+                key = str(f(tx))
+                probe_chain = 0
+                position = table.hash(key)
+
+                # count probes until empty slot or match
+                while True:
+                    if table._LinearProbeTable__array[position] is None:
+                        break
+                    elif table._LinearProbeTable__array[position][0] == key:
+                        break
+                    else:
+                        probe_chain += 1
+                        position = (position + 1) % table.table_size
+
+                # update MPCL
+                max_chain = max(max_chain, probe_chain)
+                table[key] = tx.timestamp
+
+            if max_chain < best_mpcl:
+                best_mpcl = max_chain
+                best_func = f
+
+        return (best_func, best_mpcl)
+
 
 
 if __name__ == "__main__":
